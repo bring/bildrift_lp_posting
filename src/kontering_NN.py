@@ -4,17 +4,31 @@ Created on Wed Jun 14 09:50:40 2023
 
 @author: granenga
 """
-
+#%%
 import pandas as pd
 import numpy as np
 import datetime as dt
+import os
 from pathlib import Path
 
+def unique_listdir(path):
+    """
+    returns list of directories in path without temporary files
+    """
 
+    dirs = os.listdir(path)
+    count = 0
+    while count < len(dirs):
+        if dirs[count][:2] == "~$":
+            del dirs[count]
+        else:
+            count += 1
+
+    return(dirs)
 
 def kontering_NN(infile, YrMnth = False):
     """
-    Konteringsgenerator BLB
+    Konteringsgenerator Nettverk Norden
     """
     if YrMnth == False:
         today = dt.date.today()
@@ -47,18 +61,12 @@ def kontering_NN(infile, YrMnth = False):
     next_YrMnth = "%s - %s" % (next_yr, next_mnth)
     next_period = "10.%s.%s" % (next_mnth, next_yr)
     
+    path_konteringskoder = Path(__file__).parents[1] / "mapping/mapping_nols.xlsx"
     
-    path_konteringskoder = "F:/Nettverk Norge/FO Bildrift/60 Analyse/Rapportmaler/08 Leaseplan kontering/mapping_nols.xlsx"
     
-    # path_varekost = "F:/Nettverk Norge/FO Bildrift/30 Økonomi/02 Regnskapsrapporter/Leaseplan varekost/Varekost rapport.xlsx"
-    # infile = pd.read_excel(path_varekost, sheet_name = "grunnlag hovedfaktura")
-    
-    # infile = pd.read_csv("F:/Nettverk Norge/FO Bildrift/60 Analyse/Kontering/kontering BLB/grunnlag_nols.csv", sep = ";", encoding = "latin_1", low_memory=False)
-    
-    infile = infile.loc[infile.ÅrMnd == YrMnth, :]
-    infile = infile.loc[infile.Selskap.str.contains("Posten"), :]
     infile = infile[["Enhetsnummer", "RGNO", "IVNO","Kodeforklaring","PERIODE","IVAM", "MOMS", "IVAM_INK_MOMS", "VTCD"]]
-    infile.Kodeforklaring = infile.Kodeforklaring.str.strip()
+    infile = infile.reset_index(drop = True)
+    infile.Kodeforklaring = infile.loc[:, "Kodeforklaring"].str.strip()
     
     infile_konteringskoder = pd.read_excel(path_konteringskoder)
     infile_konteringskoder.Kodeforklaring = infile_konteringskoder.Kodeforklaring.str.strip()
@@ -181,9 +189,28 @@ def kontering_NN(infile, YrMnth = False):
         diff["Bruttobeløp (selskap) [GrossSumComp]"] = curr.IVAM.sum() - df["Nettobeløp [NetSum]"].sum()
         
         df = pd.concat([df, diff])
-        df.to_excel(Path(__file__).parents[0] / Path("PBAS/%s.xlsx" % str(ivno)), index = False)
+        df.to_excel(Path(__file__).parents[1] / Path("konteringsark/%s.xlsx" % str(ivno)), index = False)
         
+def get_grunnlag():
+    """
+    Retrives newest invoice data from folder
+    """
+    path = Path(__file__).parents[1] / "data"
+    direc = unique_listdir(path)
+    direc.sort()
+    df = pd.read_excel(path / direc[-1], sheet_name = "Grunnlag_nols")
+
+    df_mapping = pd.read_excel(Path(__file__).parents[1] / "mapping/mapping_lp.xlsx")
+    df_mapping = df_mapping.rename(columns = {
+        "Kostsenternummer":"kostsenter",
+        "Kostsenter, beskrivelse":"Enhetsnummer"
+    })
+
+    df = df.merge(df_mapping, on = "kostsenter", how = "left")
+    df = df.reset_index(drop = True)
+    return(df)
+
 if __name__ == "__main__":
-    path_varekost = "F:/Nettverk Norge/FO Bildrift/30 Økonomi/02 Regnskapsrapporter/Leaseplan varekost/Varekost rapport.xlsx"
-    infile = pd.read_excel(path_varekost, sheet_name = "grunnlag hovedfaktura")
+    infile = get_grunnlag()
     kontering_NN(infile)
+# %%
