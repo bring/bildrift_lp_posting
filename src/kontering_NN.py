@@ -30,6 +30,13 @@ def kontering_NN(infile, YrMnth = False):
     """
     Konteringsgenerator Nettverk Norden
     """
+
+    #clean konteringsark folder
+    for direc in unique_listdir(Path(__file__).parents[1]/"konteringsark"):
+        try:
+            os.remove(Path(__file__).parents[1]/"konteringsark"/direc)
+        except:
+            continue
     if YrMnth == False:
         today = dt.date.today()
         yr = str(today.year)
