@@ -10,6 +10,7 @@ import numpy as np
 import datetime as dt
 import os
 from pathlib import Path
+import create_mapping
 
 def unique_listdir(path):
     """
@@ -402,6 +403,7 @@ def get_grunnlag_passon():
     return(df)
 
 if __name__ == "__main__":
+    create_mapping.create_mapping()
     infile = get_grunnlag()
     kontering_NN(infile)
     infile_passon = get_grunnlag_passon()
