@@ -139,7 +139,7 @@ def kontering_NN(infile):
         
         df = pd.DataFrame()
         df["Neste godkjenner [NextApproverName]"] = empty
-        df["Balanserende segment [Text61]"] = balanserende_segment
+        df["Balanserende segment [Text61]"] = empty
         df["Kontokode [AccountCode]"] = kontokode
         df["Enhetsnummer [CostCenterCode]"] = enhet
         df["Motpart [Text69]"] = empty
@@ -324,7 +324,7 @@ def kontering_per_process_pass_on(infile_varekost):
         
         df = pd.DataFrame()
         df["Neste godkjenner [NextApproverName]"] = empty
-        df["Balanserende segment [Text61]"] = balanserende_segment
+        df["Balanserende segment [Text61]"] = empty
         df["Kontokode [AccountCode]"] = kontokoder
         df["Enhetsnummer [CostCenterCode]"] = [enhetsnummer[inds][0] for prosess in prosesser]
         df["Motpart [Text69]"] = empty
