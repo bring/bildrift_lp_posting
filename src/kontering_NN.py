@@ -402,11 +402,33 @@ def get_grunnlag_passon():
     df = df.reset_index(drop = True)
     return(df)
 
+def test_mapping_pass_on(infile):
+    """
+    Ensures all pass_on codes has assigned account code and process
+    """
+    path_mapp = Path(__file__).parents[1] / "mapping/mapping_pass_on.xlsx"
+    df = pd.read_excel(path_mapp)
+    df["test"] = 1
+    df = df[["picd", "test"]]
+    infile = infile.merge(df, on = "picd", how = "left")
+    infile = infile.loc[infile.test != 1, :]
+    rest = infile.picd.unique()
+    str_ = ""
+    if len(rest) > 0:
+        str_ = str_ + "picd missing in mapping_pass_on:\n"
+        for pic in rest:
+            str_ = str_ + str(pic)
+            str_ = str_ + "\n"
+        
+        raise LookupError(str_)
+
 if __name__ == "__main__":
     create_mapping.create_mapping()
     infile = get_grunnlag()
     kontering_NN(infile)
     infile_passon = get_grunnlag_passon()
+    test_mapping_pass_on(infile_passon)
     kontering_per_process_pass_on(infile_passon)
+
 
 # %%
