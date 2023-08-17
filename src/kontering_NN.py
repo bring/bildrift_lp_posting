@@ -425,6 +425,8 @@ def test_mapping_pass_on(infile):
 if __name__ == "__main__":
     if not os.path.exists(Path(__file__).parents[1] / "konteringsark"):
         os.mkdir(Path(__file__).parents[1] / "konteringsark")
+    if not os.path.exists(Path(__file__).parents[1] / "data"):
+        os.mkdir(Path(__file__).parents[1] / "data")
     create_mapping.create_mapping()
     infile = get_grunnlag()
     kontering_NN(infile)
