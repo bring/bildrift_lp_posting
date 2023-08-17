@@ -4,7 +4,7 @@ Created on Wed Jun 14 09:50:40 2023
 
 @author: granenga
 """
-#%%
+
 import pandas as pd
 import numpy as np
 import datetime as dt
@@ -423,6 +423,8 @@ def test_mapping_pass_on(infile):
         raise LookupError(str_)
 
 if __name__ == "__main__":
+    if not os.path.exists(Path(__file__).parents[1] / "konteringsark"):
+        os.mkdir(Path(__file__).parents[1] / "konteringsark")
     create_mapping.create_mapping()
     infile = get_grunnlag()
     kontering_NN(infile)
@@ -431,4 +433,4 @@ if __name__ == "__main__":
     kontering_per_process_pass_on(infile_passon)
 
 
-# %%
+
