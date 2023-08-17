@@ -1,5 +1,4 @@
 *.xlsx
 *.xlsm
 !mapping*
-!*Fakturarapport*
 !Bilfåte*
