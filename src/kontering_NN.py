@@ -194,7 +194,10 @@ def kontering_NN(infile):
         diff["Bruttobeløp (selskap) [GrossSumComp]"] = curr.IVAM.sum() - df["Nettobeløp [NetSum]"].sum()
         
         df = pd.concat([df, diff])
-        df.to_excel(Path(__file__).parents[1] / Path("konteringsark/%s.xlsx" % str(ivno)), index = False)
+        try:
+            df.to_excel(Path(__file__).parents[1] / Path("konteringsark/%s.xlsx" % str(ivno)), index = False)
+        except:
+            pass
 
 
 def kontering_per_process_pass_on(infile_varekost):
@@ -362,7 +365,10 @@ def kontering_per_process_pass_on(infile_varekost):
         df["IC Partner [Text49]"] = empty
         
         outpath = Path(__file__).parents[1] / ("konteringsark/%s.xlsx" % (unique_invoice[i]))
-        df.to_excel(outpath, index=False)
+        try:
+            df.to_excel(outpath, index=False)
+        except:
+            pass
         
 def get_grunnlag():
     """
