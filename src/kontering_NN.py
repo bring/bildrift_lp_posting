@@ -47,7 +47,7 @@ def kontering_NN(infile):
         mnth = str(today.month)
     YrMnth = "%s - %s" % (yr, mnth)
     
-    curr_period = "10.%s.%s" % (mnth, yr)
+    curr_period = "%s.%s.%s" % (mnth, mnth, yr)
     
     
     yr = int(YrMnth[:4])
@@ -64,7 +64,7 @@ def kontering_NN(infile):
         next_yr = str(yr)
     
     next_YrMnth = "%s - %s" % (next_yr, next_mnth)
-    next_period = "10.%s.%s" % (next_mnth, next_yr)
+    next_period = "%s.%s.%s" % (next_mnth, next_mnth, next_yr)
     
     path_konteringskoder = Path(__file__).parents[1] / "mapping/mapping_nols.xlsx"
     
