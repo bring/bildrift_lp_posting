@@ -11,6 +11,7 @@ import datetime as dt
 import os
 from pathlib import Path
 import create_mapping
+cuno_pbb = 99389 #Customer nr of PBB in Leaseplan
 
 def unique_listdir(path):
     """
@@ -102,7 +103,7 @@ def kontering_NN(infile):
         curr.reset_index(inplace = True)
 
         empty = ["" for i in range(len(curr))]
-        if curr.CUNO[0] == 99389:
+        if curr.CUNO[0] == cuno_pbb:
             balanserende_segment = ["000726" for i in range(len(curr))]
         else:
             balanserende_segment = ["000020" for i in range(len(curr))]
@@ -209,176 +210,6 @@ def kontering_NN(infile):
         except:
             pass
 
-
-def kontering_per_process_pass_on(infile_varekost):
-    """
-    Reads Leaseplan Varekost rapport
-    
-    Creates one excel sheet for every invoice number
-    to be used in Basware
-    Creates one konteringsline for each process and tax percentage.
-    """
-
-    today = dt.date.today()
-    yr = str(today.year)
-    if today.month < 10:
-        mnth = "0%s" % str(today.month)
-    else:
-        mnth = str(today.month)
-    YrMnth = "%s - %s" % (yr, mnth)
-    
-    path_konteringskoder = Path(__file__).parents[1] / "mapping/mapping_pass_on.xlsx"
-    infile_konteringskoder = pd.read_excel(path_konteringskoder)
-    
-    invoice_numbers = infile_varekost["piiv"].to_numpy(dtype=str)
-    kodeforklaring_pass_on = infile_varekost["picd"].to_numpy(dtype=str)
-    kodeforklaring_pass_on = np.char.strip(kodeforklaring_pass_on)
-    net_nols = infile_varekost["piam"].to_numpy()
-    moms_nols = infile_varekost["mvA"].to_numpy()
-    brutto_nols = infile_varekost["piam_ink_mva"].to_numpy()
-    enhetsnummer = infile_varekost["Enhetsnummer"].to_numpy(dtype=str)
-    lastbærer_nols = infile_varekost["rgno"].to_numpy(dtype = str)
-    for i in range(len(lastbærer_nols)):
-        try:
-            int(lastbærer_nols[i])
-            lastbærer_nols[i] = ""
-        except:
-            pass
-    
-    
-    tax = np.zeros_like(net_nols)
-    tax[np.nonzero(net_nols)] = np.round(((np.abs(brutto_nols[np.nonzero(net_nols)])/np.abs(net_nols[np.nonzero(net_nols)]))-1)*100)
-    avgiftskode = np.zeros_like(tax)
-    avgiftskode[np.nonzero(tax)] == 1
-    
-    unique_invoice = np.unique(invoice_numbers)
-    
-    kodeforklaring_kode = infile_konteringskoder["picd"].to_numpy(dtype=str)
-    kodeforklaring_kode = np.char.strip(kodeforklaring_kode)
-    konto_kode = infile_konteringskoder["Konto"].to_numpy(dtype=str)
-    kontonavn_kode = infile_konteringskoder["Kontonavn"].to_numpy(dtype=str)
-    prosess_kode = infile_konteringskoder["Prosess"].to_numpy(dtype=str)
-    prosessnavn_kode = infile_konteringskoder["Prosessnavn Posten"].to_numpy(dtype=str)
-    kontotekst_kode = infile_konteringskoder["Konto tekst"].to_numpy(dtype=str)
-    kontotekst_pass_on = []
-    for i in range(len(kodeforklaring_pass_on)):
-        kontotekst_pass_on.append(kontotekst_kode[np.where(kodeforklaring_kode == kodeforklaring_pass_on[i])][0])
-        
-
-    kontotekst_pass_on = np.array(kontotekst_pass_on)
-    
-
-    taxcodes = [0, 1]
-    for i in range(len(unique_invoice)):
-        inds = np.where(invoice_numbers == unique_invoice[i])
-        
-        
-
-        tax_prosess = []
-        net_prosess = []
-        moms_prosess = []
-        brutto_prosess = []
-        avgiftskode_prosess = []
-        kontokoder = []
-        prosesser = []
-        kontotekster = []
-        balanserende_segment = []
-        
-        L = 0
-        net_rest = 0
-        for j in range(len(np.unique(kontotekst_kode))):
-            for k in range(len(taxcodes)):
-                req1 = kontotekst_pass_on == np.unique(kontotekst_kode)[j]
-                req2 = avgiftskode == taxcodes[k]
-                req3 = invoice_numbers == unique_invoice[i]
-                indices = np.where(req1 & req2 & req3)
-                temp_net = np.sum(net_nols[indices])
-                temp_moms = np.sum(moms_nols[indices])
-                
-                if temp_moms != 0:
-                    curr_net = 4*temp_moms
-                    curr_brutto = 5*temp_moms
-                    net_rest = temp_net - 4*temp_moms
-                
-                if temp_moms == 0:
-                    curr_net = temp_net + net_rest
-                    curr_brutto = curr_net
-                    net_rest = 0
-                
-                if np.abs(curr_brutto) > 1e-3:
-                    net_prosess.append(curr_net)
-                    moms_prosess.append(temp_moms)
-                    brutto_prosess.append(curr_brutto)
-                    
-                    if brutto_prosess[L] != 0:
-                        tax_prosess.append(np.round((brutto_prosess[L]/net_prosess[L]-1)*100))
-                    else:
-                        tax_prosess.append(0)
-                    if tax_prosess[L] != 0:
-                        avgiftskode_prosess.append(1)
-                    else:
-                        avgiftskode_prosess.append(0)
-                    kontokoder.append(konto_kode[np.where(kontotekst_kode == np.unique(kontotekst_kode)[j])][0])
-                    prosesser.append(prosess_kode[np.where(kontotekst_kode == np.unique(kontotekst_kode)[j])][0])
-                    kontotekster.append(kontotekst_kode[np.where(kontotekst_kode == np.unique(kontotekst_kode)[j])][0])
-                    L += 1
-                
-        empty = []
-        for j in range(len(prosesser)):
-            empty.append("")
-        empty = np.array(empty)
-        
-        enhet = enhetsnummer[inds][0]
-        
-        balanserende_segment = []
-        for n in range(len(prosesser)):
-            segment = "000020"
-            balanserende_segment.append(segment)
-        
-        df = pd.DataFrame()
-        df["Neste godkjenner [NextApproverName]"] = empty
-        df["Balanserende segment [Text61]"] = balanserende_segment
-        df["Kontokode [AccountCode]"] = kontokoder
-        df["Enhetsnummer [CostCenterCode]"] = [enhetsnummer[inds][0] for prosess in prosesser]
-        df["Motpart [Text69]"] = empty
-        df["Prosess [Text25]"] = prosesser
-        df["Prosjekt [ProjectCode]"] = empty
-        df["Objekt [Text21]"] = empty
-        df["Kommentar [LastComment]"] = [YrMnth[:4] + "_" + YrMnth[-2:] + "_" + kontotekst for kontotekst in kontotekster]
-        df["Lastbærer [Text29]"] = empty
-        df["Avgiftsprosent [TaxPercent]"] = empty
-        df["Nettobeløp [NetSum]"] = net_prosess
-        df["Avgiftsbeløp [TaxSum]"] = moms_prosess
-        df["Bruttobeløp [GrossSum]"] = brutto_prosess
-        df["Avgiftskode [TaxCode]"] = avgiftskode_prosess
-        df["Service [Text65]"] = empty
-        df["Periodisering start [Date1]"] = empty
-        df["Antall perioder [Num1]"] = empty
-        df["Siste godkjenner [LatestApproverName]"] = empty
-        df["Siste kontrollør [LatestReviewerName]"] = empty
-        df["Artikkel [Text41]"] = empty
-        df["Hovedkategori [Text37]"] = empty
-        df["Underkategori [Text39]"] = empty
-        df["Brukstid År [Text1]"] = empty
-        df["Brukstid Mnd [Text2]"] = empty
-        df["Brukstid kommentar [Text3]"] = empty
-        df["Tilknyttet Aktiva [Text17]"] = empty
-        df["Nettobeløp (selskap) [NetSumComp]"] = net_prosess
-        df["Bruttobeløp (selskap) [GrossSumComp]"] = brutto_prosess
-        df["Artikkel Beskrivelse [Text42]"] = empty
-        df["Matchet nettobeløp [MatchedNetSum]"] = empty
-        df["Matchet antall [MatchedQuantity]"] = empty
-        df["Innkjøpsordrenummer [OrderNumber]"] = empty
-        df["Ordrelinjernummer [OrderRowNumber]"] = empty
-        df["Bestilt mengde [Num10]"] = empty
-        df["Regnskapsår [Text24]"] = empty
-        df["IC Partner [Text49]"] = empty
-        
-        outpath = Path(__file__).parents[1] / ("konteringsark/%s.xlsx" % (unique_invoice[i]))
-        try:
-            df.to_excel(outpath, index=False)
-        except:
-            pass
         
 def get_grunnlag():
     """
@@ -438,6 +269,145 @@ def test_mapping_pass_on(infile):
         
         raise LookupError(str_)
 
+def kontering_pass_on(infile, rgno = False):
+    
+    today = dt.date.today()
+    yr = str(today.year)
+    if today.month < 10:
+        mnth = "0%s" % str(today.month)
+    else:
+        mnth = str(today.month)
+    YrMnth = "%s - %s" % (yr, mnth)
+    
+    
+    infile = infile.copy()
+    
+    infile = infile[["kundnr", "picd", "rgno", "piam", "pivt", "piiv", "mvA", "Enhetsnummer"]]
+    
+    df = infile.groupby(["Enhetsnummer", "kundnr", "picd", "rgno", "pivt", "piiv"], as_index = False).agg("sum", numeric_only = True)
+    
+    if not rgno:
+        df = infile.groupby(["Enhetsnummer", "kundnr", "picd", "pivt", "piiv"], as_index = False).agg("sum", numeric_only = True)
+    
+    
+    path_konteringskoder = Path(__file__).parents[1] / "mapping/mapping_pass_on.xlsx"
+    infile_konteringskoder = pd.read_excel(path_konteringskoder)
+    
+    df = df.merge(infile_konteringskoder, on = "picd", how = "left")
+    
+    df = df.groupby(['Enhetsnummer', 'kundnr', 'pivt', 'piiv', 'pids',
+           'Konto', 'Kontonavn', 'Prosess', 'Prosessnavn Posten', 'Konto tekst'], as_index = False).agg("sum", numeric_only = True)
+    df = df.sort_values(by = "Konto tekst")
+    
+    
+    for piiv in df.piiv.unique():
+        curr = df.loc[df.piiv == piiv, :]
+        curr = curr.reset_index(drop = True)
+        
+        empty = ["" for i in range(len(curr))]
+        if curr.kundnr[0] == cuno_pbb:
+            balanserende_segment = ["000726" for i in range(len(curr))]
+        else:
+            balanserende_segment = ["000020" for i in range(len(curr))]
+        kontokode = curr.Konto.copy()
+        enhet = curr.Enhetsnummer.copy()
+        prosess = curr.Prosess.copy()
+        perioder = empty
+        kommentar = []
+        for i in range(len(curr)):
+            kommentar.append(YrMnth[:4] + "_" + YrMnth[-2:] + "_" + curr["Konto tekst"][i])
+    
+        if rgno:
+            lastbærer = curr.RGNO.copy()
+        else:
+            lastbærer = empty
+        
+        VTCD = curr.pivt
+        net = curr.piam.copy()
+        moms = curr.mvA.copy()
+        
+        net.loc[VTCD == 2] = moms.loc[VTCD == 2]*4
+        net.loc[VTCD == 4] = moms.loc[VTCD == 4]/(0.12)
+        brutto = net + moms
+        
+        avgiftskode = pd.Series(np.zeros(len(curr)))
+        # # avgiftskode.loc[moms.abs() > 0] = 1
+        avgiftskode.loc[VTCD == 2] = 1
+        avgiftskode.loc[VTCD == 4] = 13
+        
+        periodisering = empty
+        
+        df2 = pd.DataFrame()
+        df2["Neste godkjenner [NextApproverName]"] = empty
+        df2["Balanserende segment [Text61]"] = balanserende_segment
+        df2["Kontokode [AccountCode]"] = kontokode
+        df2["Enhetsnummer [CostCenterCode]"] = enhet
+        df2["Motpart [Text69]"] = empty
+        df2["Prosess [Text25]"] = prosess
+        df2["Prosjekt [ProjectCode]"] = empty
+        df2["Objekt [Text21]"] = empty
+        df2["Kommentar [LastComment]"] = kommentar
+        # df2["Lastbærer [Text29]"] = lastbærer
+        df2["Lastbærer [Text29]"] = empty
+        df2["Avgiftsprosent [TaxPercent]"] = empty
+        df2["Nettobeløp [NetSum]"] = net
+        df2["Avgiftsbeløp [TaxSum]"] = moms
+        df2["Bruttobeløp [GrossSum]"] = brutto
+        df2["Avgiftskode [TaxCode]"] = avgiftskode
+        df2["Service [Text65]"] = empty
+        df2["Periodisering start [Date1]"] = periodisering
+        df2["Antall perioder [Num1]"] = perioder
+        df2["Siste godkjenner [LatestApproverName]"] = empty
+        df2["Siste kontrollør [LatestReviewerName]"] = empty
+        df2["Artikkel [Text41]"] = empty
+        df2["Hovedkategori [Text37]"] = empty
+        df2["Underkategori [Text39]"] = empty
+        df2["Brukstid År [Text1]"] = empty
+        df2["Brukstid Mnd [Text2]"] = empty
+        df2["Brukstid kommentar [Text3]"] = empty
+        df2["Tilknyttet Aktiva [Text17]"] = empty
+        df2["Nettobeløp (selskap) [NetSumComp]"] = net
+        df2["Bruttobeløp (selskap) [GrossSumComp]"] = brutto
+        df2["Artikkel Beskrivelse [Text42]"] = empty
+        df2["Matchet nettobeløp [MatchedNetSum]"] = empty
+        df2["Matchet antall [MatchedQuantity]"] = empty
+        df2["Innkjøpsordrenummer [OrderNumber]"] = empty
+        df2["Ordrelinjernummer [OrderRowNumber]"] = empty
+        df2["Bestilt mengde [Num10]"] = empty
+        df2["Regnskapsår [Text24]"] = empty
+        df2["IC Partner [Text49]"] = empty
+        
+        #ørediff
+        if np.abs((curr.piam.sum() - df2["Nettobeløp [NetSum]"].sum())) > 100:
+            print("Oh no! Ørediff for invoice %s is quite large!" % str(piiv))
+        diff = pd.DataFrame()
+        diff["Prosess [Text25]"] = ["0000"]
+        diff["Kontokode [AccountCode]"] = ["779000"]
+        diff["Enhetsnummer [CostCenterCode]"] = enhet[0]
+        
+        if curr.kundnr[0] == 99389:
+            diff["Balanserende segment [Text61]"] = ["000726"]
+        else:
+            diff["Balanserende segment [Text61]"] = ["000020"]
+        
+        
+        diff["Kommentar [LastComment]"] = ["%s_Ørediff" % YrMnth.replace(" - ", "_")]
+        diff["Avgiftskode [TaxCode]"] = [0]
+        diff["Nettobeløp [NetSum]"] = curr.piam.sum() - df2["Nettobeløp [NetSum]"].sum()
+        diff["Avgiftsbeløp [TaxSum]"] = [0]
+        diff["Bruttobeløp [GrossSum]"] = curr.piam.sum() - df2["Nettobeløp [NetSum]"].sum()
+        diff["Nettobeløp (selskap) [NetSumComp]"] = curr.piam.sum() - df2["Nettobeløp [NetSum]"].sum()
+        diff["Bruttobeløp (selskap) [GrossSumComp]"] = curr.piam.sum() - df2["Nettobeløp [NetSum]"].sum()
+        
+        df2 = pd.concat([df2, diff])
+        
+        outpath = Path(__file__).parents[1] / ("konteringsark/%s.xlsx" % (str(piiv)))
+        try:
+            df2.to_excel(outpath, index=False)
+        except:
+            pass
+        
+    
 if __name__ == "__main__":
     if not os.path.exists(Path(__file__).parents[1] / "konteringsark"):
         os.mkdir(Path(__file__).parents[1] / "konteringsark")
@@ -445,10 +415,10 @@ if __name__ == "__main__":
         os.mkdir(Path(__file__).parents[1] / "data")
     create_mapping.create_mapping()
     infile = get_grunnlag()
-    a = kontering_NN(infile)
-    # infile_passon = get_grunnlag_passon()
-    # test_mapping_pass_on(infile_passon)
-    # kontering_per_process_pass_on(infile_passon)
+    kontering_NN(infile)
+    infile_passon = get_grunnlag_passon()
+    test_mapping_pass_on(infile_passon)
+    kontering_pass_on(infile_passon)
 
 
 
