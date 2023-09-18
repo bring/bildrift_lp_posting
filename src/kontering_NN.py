@@ -69,7 +69,7 @@ def kontering_NN(infile):
     path_konteringskoder = Path(__file__).parents[1] / "mapping/mapping_nols.xlsx"
     
     
-    infile = infile[["Enhetsnummer", "RGNO", "IVNO","Kodeforklaring","PERIODE","IVAM", "MOMS", "IVAM_INK_MOMS", "VTCD"]]
+    infile = infile[["Enhetsnummer", "RGNO", "IVNO","Kodeforklaring","PERIODE","IVAM", "MOMS", "IVAM_INK_MOMS", "VTCD", "CUNO"]]
     infile = infile.reset_index(drop = True)
     infile.Kodeforklaring = infile.loc[:, "Kodeforklaring"].str.strip()
     
@@ -92,9 +92,9 @@ def kontering_NN(infile):
     infile.loc[infile.fakt_periode == next_YrMnth,"Antall perioder [Num1]"] = 1
     
     # infile["moms"] = infile.MOMS.abs() > 0
-    infile = infile.groupby(["Enhetsnummer", "IVNO", "Kodeforklaring", "Antall perioder [Num1]", "VTCD"], as_index = False).agg("sum", numeric_only = True)
+    infile = infile.groupby(["Enhetsnummer", "IVNO", "Kodeforklaring", "Antall perioder [Num1]", "VTCD", "CUNO"], as_index = False).agg("sum", numeric_only = True)
     infile = infile.merge(infile_konteringskoder, how = "left", on = "Kodeforklaring")
-    infile = infile.groupby(["Enhetsnummer", "IVNO", "Antall perioder [Num1]", 'Konto','Kontonavn', 'Prosess', 'Prosessnavn Posten', 'Konto tekst', "VTCD"], as_index = False).agg("sum", numeric_only = True)
+    infile = infile.groupby(["Enhetsnummer", "IVNO", "Antall perioder [Num1]", 'Konto','Kontonavn', 'Prosess', 'Prosessnavn Posten', 'Konto tekst', "VTCD", "CUNO"], as_index = False).agg("sum", numeric_only = True)
     
     
     for ivno in infile.IVNO.unique():
@@ -102,7 +102,10 @@ def kontering_NN(infile):
         curr.reset_index(inplace = True)
 
         empty = ["" for i in range(len(curr))]
-        balanserende_segment = ["000020" for i in range(len(curr))]
+        if curr.CUNO[0] == 99389:
+            balanserende_segment = ["000726" for i in range(len(curr))]
+        else:
+            balanserende_segment = ["000020" for i in range(len(curr))]
         kontokode = curr.Konto.copy()
         enhet = curr.Enhetsnummer.copy()
         prosess = curr.Prosess.copy()
@@ -184,7 +187,13 @@ def kontering_NN(infile):
         diff["Prosess [Text25]"] = ["0000"]
         diff["Kontokode [AccountCode]"] = ["779000"]
         diff["Enhetsnummer [CostCenterCode]"] = enhet[0]
-        diff["Balanserende segment [Text61]"] = ["000020"]
+        
+        if curr.CUNO[0] == 99389:
+            diff["Balanserende segment [Text61]"] = ["000726"]
+        else:
+            diff["Balanserende segment [Text61]"] = ["000020"]
+        
+        
         diff["Kommentar [LastComment]"] = ["%s_Ørediff" % YrMnth]
         diff["Avgiftskode [TaxCode]"] = [0]
         diff["Nettobeløp [NetSum]"] = curr.IVAM.sum() - df["Nettobeløp [NetSum]"].sum()
@@ -194,6 +203,7 @@ def kontering_NN(infile):
         diff["Bruttobeløp (selskap) [GrossSumComp]"] = curr.IVAM.sum() - df["Nettobeløp [NetSum]"].sum()
         
         df = pd.concat([df, diff])
+        
         try:
             df.to_excel(Path(__file__).parents[1] / Path("konteringsark/%s.xlsx" % str(ivno)), index = False)
         except:
@@ -435,10 +445,10 @@ if __name__ == "__main__":
         os.mkdir(Path(__file__).parents[1] / "data")
     create_mapping.create_mapping()
     infile = get_grunnlag()
-    kontering_NN(infile)
-    infile_passon = get_grunnlag_passon()
-    test_mapping_pass_on(infile_passon)
-    kontering_per_process_pass_on(infile_passon)
+    a = kontering_NN(infile)
+    # infile_passon = get_grunnlag_passon()
+    # test_mapping_pass_on(infile_passon)
+    # kontering_per_process_pass_on(infile_passon)
 
 
 
