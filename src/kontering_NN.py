@@ -1,3 +1,4 @@
+# %%
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun 14 09:50:40 2023
@@ -29,6 +30,29 @@ def unique_listdir(path):
             count += 1
 
     return dirs
+
+
+def test_mapping_nols(infile):
+    """
+    Ensures all pass_on codes has assigned account code and process
+    """
+    path_mapp = Path(__file__).parents[1] / "mapping/mapping_nols.xlsx"
+    df = pd.read_excel(path_mapp)
+    df["test"] = 1
+    df = df[["Kodeforklaring", "test"]]
+    infile["Kodeforklaring"] = infile.Kodeforklaring.str.strip()
+    df["Kodeforklaring"] = df.Kodeforklaring.str.strip()
+    infile = infile.merge(df, on="Kodeforklaring", how="left")
+    infile = infile.loc[infile.test != 1, :]
+    rest = infile.Kodeforklaring.unique()
+    str_ = ""
+    if len(rest) > 0:
+        str_ = str_ + "Kodeforklaring missing in mapping_nols:\n"
+        for pic in rest:
+            str_ = str_ + str(pic)
+            str_ = str_ + "\n"
+
+        raise LookupError(str_)
 
 
 def kontering_NN(infile):
@@ -324,27 +348,6 @@ def test_mapping_pass_on(infile):
         raise LookupError(str_)
 
 
-def test_mapping_nols(infile):
-    """
-    Ensures all pass_on codes has assigned account code and process
-    """
-    path_mapp = Path(__file__).parents[1] / "mapping/mapping_nols.xlsx"
-    df = pd.read_excel(path_mapp)
-    df["test"] = 1
-    df = df[["Kodeforklaring", "test"]]
-    infile = infile.merge(df, on="Kodeforklaring", how="left")
-    infile = infile.loc[infile.test != 1, :]
-    rest = infile.Kodeforklaring.unique()
-    str_ = ""
-    if len(rest) > 0:
-        str_ = str_ + "Kodeforklaring missing in mapping_nols:\n"
-        for pic in rest:
-            str_ = str_ + str(pic)
-            str_ = str_ + "\n"
-
-        raise LookupError(str_)
-
-
 def kontering_pass_on(infile, rgno=False):
 
     today = dt.date.today()
@@ -514,6 +517,7 @@ if __name__ == "__main__":
         os.mkdir(Path(__file__).parents[1] / "data")
     create_mapping.create_mapping()
     infile = get_grunnlag()
+
     test_mapping_nols(infile)
     kontering_NN(infile)
     infile_passon = get_grunnlag_passon()
